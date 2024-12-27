@@ -23,24 +23,30 @@ inputs:
   target:
     description: Target in MinIO's bucket (with a leading slash, default='/')
     required: false
-    default: '/'
+    default: "/"
   insecure:
     description: Disables TLS/SSL certificate verification. Allows TLS connectivity to servers with invalid certificates.
     required: false
-    default: 'false'
+    default: "false"
   recursive:
     description: If you specify a directory, you must also set `recursive=true` to recursively copy the contents of that directory. If you omit the `recursive` argument, action only copies objects in the top level of the specified directory.
     required: false
-    default: 'false'
+    default: "false"
 runs:
-  using: docker
-  image: Dockerfile
-  env:
-    YA_ENDPOINT: "${{ inputs.endpoint }}"
-    YA_ACCESS_KEY: "${{ inputs.access_key }}"
-    YA_SECRET_KEY: "${{ inputs.secret_key }}"
-    YA_INSECURE: "${{ inputs.insecure }}"
-    YA_RECURSIVE: "${{ inputs.recursive }}"
-  args:
-    - "${{ inputs.source }}"
-    - "${{ inputs.bucket }}${{ inputs.target }}"
+  using: composite
+  steps:
+    - name: Install MinIO cli
+      run: |
+        mkdir -p /minio-binaries
+        wget --no-verbose -O "/minio-binaries/mc" https://dl.min.io/client/mc/release/linux-amd64/mc
+        chmod +x /minio-binaries/mc
+      shell: bash
+    - name: Run
+      run: |
+        export YA_ENDPOINT="${{ inputs.endpoint }}"
+        export YA_ACCESS_KEY="${{ inputs.access_key }}"
+        export YA_SECRET_KEY="${{ inputs.secret_key }}"
+        export YA_INSECURE="${{ inputs.insecure }}"
+        export YA_RECURSIVE="${{ inputs.recursive }}"
+        ${GITHUB_ACTION_PATH}/action.sh "${{ inputs.source }}" "${{ inputs.bucket }}${{ inputs.target }}"
+      shell: bash
