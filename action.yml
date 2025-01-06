@@ -37,9 +37,9 @@ runs:
   steps:
     - name: Install MinIO cli
       run: |
-        mkdir -p /minio-binaries
-        wget --no-verbose -O "/minio-binaries/mc" https://dl.min.io/client/mc/release/linux-amd64/mc
-        chmod +x /minio-binaries/mc
+        mkdir -p ${{ github.workspace }}/minio-binaries
+        wget --no-verbose -O "${{ github.workspace }}/minio-binaries/mc" https://dl.min.io/client/mc/release/linux-amd64/mc
+        chmod +x ${{ github.workspace }}/minio-binaries/mc
       shell: bash
     - name: Run
       run: |
@@ -48,5 +48,6 @@ runs:
         export YA_SECRET_KEY="${{ inputs.secret_key }}"
         export YA_INSECURE="${{ inputs.insecure }}"
         export YA_RECURSIVE="${{ inputs.recursive }}"
+        export PATH="$PATH:${{ github.workspace }}/minio-binaries"
         ${GITHUB_ACTION_PATH}/action.sh "${{ inputs.source }}" "${{ inputs.bucket }}${{ inputs.target }}"
       shell: bash
