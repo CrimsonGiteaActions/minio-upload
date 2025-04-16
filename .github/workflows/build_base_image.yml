@@ -1,0 +1,98 @@
+name: Build base image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "base/Dockerfile"
+      - "!.gitignore"
+      - "!LICENSE"
+      - "!README.md"
+  workflow_dispatch:
+    inputs:
+      tag-ref-name:
+        description: Tag ref
+        type: string
+  workflow_call:
+    inputs:
+      tag-ref-name:
+        description: Tag ref
+        type: string
+
+
+defaults:
+  run:
+    shell: bash
+
+
+env:
+  PACKAGE_NAME: "gha-minio-upload"
+
+
+jobs:
+  build:
+    name: Build base image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      
+      - name: Setup
+        id: env-setup
+        run: |
+          docker_base_image="ghcr.io/${{ github.repository_owner }}/${{ env.PACKAGE_NAME }}"
+          docker_base_image=$(echo $docker_base_image | tr '[:upper:]' '[:lower:]')
+          echo "docker_base_image=$docker_base_image" >> $GITHUB_OUTPUT
+          
+          build_image_tag=${{ inputs.tag-ref-name || 'nightly' }}
+          build_image_latest_tag=${{ inputs.tag-ref-name && 'latest' || 'nightly' }}
+          build_image_tag=$(echo $build_image_tag | tr '[:upper:]' '[:lower:]')
+          build_image_latest_tag=$(echo $build_image_latest_tag | tr '[:upper:]' '[:lower:]')
+          
+          echo "build_image_tag=$build_image_tag" >> $GITHUB_OUTPUT
+          echo "build_image_latest_tag=$build_image_latest_tag" >> $GITHUB_OUTPUT
+      
+      - name: Set Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ steps.env-setup.outputs.docker_base_image }}
+          tags: |
+            ${{ steps.env-setup.outputs.build_image_tag }}
+            ${{ steps.env-setup.outputs.build_image_latest_tag }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: "./base"
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  clean:
+    name: Clean untagged image
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Clean
+        uses: NorthRealm/reusable-actions/delete-untagged-ghcr-action@main
+        with:
+          package_name: ${{ env.PACKAGE_NAME }}
+        continue-on-error: true

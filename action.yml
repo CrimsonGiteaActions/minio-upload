@@ -1,9 +1,5 @@
-name: Yet another MinIO Upload
-description: Upload file(s) to MinIO instance (self-hosted as well)
-author: "Vladimir <opa_oz> Levin"
-branding:
-  icon: upload-cloud
-  color: purple
+name: Minio Upload
+description: Minio Upload
 inputs:
   endpoint:
     description: MinIO endpoint (use `insecure=true` for HTTP-only)
@@ -32,22 +28,20 @@ inputs:
     description: If you specify a directory, you must also set `recursive=true` to recursively copy the contents of that directory. If you omit the `recursive` argument, action only copies objects in the top level of the specified directory.
     required: false
     default: "false"
+  debug:
+    description: Enable debug output
+    required: false
+    default: "false"
 runs:
-  using: composite
-  steps:
-    - name: Install MinIO cli
-      run: |
-        mkdir -p ${{ github.workspace }}/minio-binaries
-        wget --no-verbose -O "${{ github.workspace }}/minio-binaries/mc" https://dl.min.io/client/mc/release/linux-amd64/mc
-        chmod +x ${{ github.workspace }}/minio-binaries/mc
-      shell: bash
-    - name: Run
-      run: |
-        export YA_ENDPOINT="${{ inputs.endpoint }}"
-        export YA_ACCESS_KEY="${{ inputs.access_key }}"
-        export YA_SECRET_KEY="${{ inputs.secret_key }}"
-        export YA_INSECURE="${{ inputs.insecure }}"
-        export YA_RECURSIVE="${{ inputs.recursive }}"
-        export PATH="$PATH:${{ github.workspace }}/minio-binaries"
-        ${GITHUB_ACTION_PATH}/action.sh "${{ inputs.source }}" "${{ inputs.bucket }}${{ inputs.target }}"
-      shell: bash
+  using: docker
+  image: Dockerfile
+  env:
+    MINIO_ENDPOINT: "${{ inputs.endpoint }}"
+    MINIO_ACCESS_KEY: "${{ inputs.access_key }}"
+    MINIO_SECRET_KEY: "${{ inputs.secret_key }}"
+    MINIO_INSECURE: "${{ inputs.insecure }}"
+    MINIO_RECURSIVE: "${{ inputs.recursive }}"
+    MINIO_DEBUG: "${{ inputs.debug }}"
+  args:
+    - "${{ inputs.source }}"
+    - "${{ inputs.bucket }}${{ inputs.target }}"
